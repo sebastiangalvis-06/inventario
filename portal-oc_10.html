@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Portal de Órdenes de Compra · Somos Networks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+
+/* ==================== CONFIGURACION ==================== */
+/* Reemplaza estos 3 valores con los de tu proyecto.
+   La URL y la anon key las encuentras en Supabase > Project Settings > API.
+   El codigo de acceso es solo una barrera ligera para el equipo de compras. */
+
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+/* ==================== CONFIGURACION ==================== */
+const SUPABASE_URL = "https://fbcqvzxrmbqsmdqnllfp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiY3F2enhybWJxc21kcW5sbGZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTk2NjQsImV4cCI6MjA5NDQzNTY2NH0.Qg9dsf9Pua6gKnA3bymL5fkTn856Ut7GNxFE4mA0CxE";
+const ACCESS_CODE_COMPRAS = "SOMOS2026";
+const DIAS_ALERTA = 5; /* dias sin actualizar antes de marcar "atrasado" */
+</script>
+
+<style>
+:root{
+  --bg:#0A0A0B;
+  --surface:#15151A;
+  --surface-2:#1D1D22;
+  --border:#2A2A30;
+  --gold:#F8E294;
+  --gold-dim:#B8A85E;
+  --text:#EDEDED;
+  --text-muted:#9A9A9E;
+  --gray:#55555B;
+  --amber:#F2A65A;
+  --blue:#5AA9E6;
+  --green-light:#8CD9B3;
+  --green:#4CD787;
+  --red:#E5484D;
+  --font-display:'Be Vietnam Pro', sans-serif;
+  --font-mono:'Roboto Mono', monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-display);
+  -webkit-font-smoothing:antialiased;
+}
+#app{max-width:1080px;margin:0 auto;padding:0 24px 80px;}
+
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:28px 0 20px;border-bottom:1px solid var(--border);margin-bottom:32px;
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand .mark{
+  width:10px;height:10px;background:var(--gold);border-radius:2px;flex:none;
+}
+.brand-text{font-family:var(--font-mono);font-size:13px;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;}
+.brand-text b{color:var(--gold);font-weight:600;}
+.role-tag{font-family:var(--font-mono);font-size:12px;color:var(--text-muted);}
+
+h1{font-size:26px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em;}
+h2{font-size:17px;font-weight:600;margin:0 0 4px;}
+.subtitle{color:var(--text-muted);font-size:14.5px;margin:0 0 28px;line-height:1.5;}
+
+/* --------- gate de acceso --------- */
+.gate{
+  max-width:420px;margin:80px auto;text-align:center;
+}
+.gate-box{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:32px 28px;
+}
+.gate-box p{color:var(--text-muted);font-size:14px;margin:0 0 20px;line-height:1.6;}
+.gate-error{color:var(--red);font-size:13px;margin-top:10px;display:none;}
+
+/* --------- inputs --------- */
+input, select, textarea{
+  background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:var(--font-display);font-size:14px;
+  padding:10px 12px;width:100%;outline:none;
+}
+input:focus, select:focus, textarea:focus{border-color:var(--gold-dim);}
+input::placeholder{color:var(--text-muted);}
+label{font-size:12.5px;color:var(--text-muted);display:block;margin-bottom:6px;font-family:var(--font-mono);}
+.field{margin-bottom:16px;}
+.row{display:flex;gap:12px;}
+.row > *{flex:1;}
+
+button{
+  font-family:var(--font-display);font-weight:600;font-size:14px;
+  border-radius:8px;border:1px solid var(--border);cursor:pointer;
+  padding:10px 18px;background:transparent;color:var(--text);
+  transition:all .15s ease;
+}
+button:hover{border-color:var(--gold-dim);}
+button.primary{background:var(--gold);color:#1A1708;border-color:var(--gold);}
+button.primary:hover{background:#FCEDB0;}
+button.ghost{border-color:transparent;color:var(--text-muted);padding:6px 10px;font-size:13px;}
+button.ghost:hover{color:var(--text);}
+button.small{padding:6px 12px;font-size:12.5px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+
+/* --------- tabs --------- */
+.tabs{display:flex;gap:4px;margin-bottom:28px;border-bottom:1px solid var(--border);}
+.tab{
+  font-family:var(--font-mono);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--text-muted);padding:10px 4px;margin-right:22px;cursor:pointer;
+  border-bottom:2px solid transparent;
+}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* --------- cards --------- */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:20px 22px;margin-bottom:16px;
+}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.oc-number{font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--gold);}
+.oc-meta{font-size:12.5px;color:var(--text-muted);font-family:var(--font-mono);}
+.badge{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;text-transform:uppercase;
+  padding:3px 9px;border-radius:20px;font-weight:600;
+}
+.badge.atrasado{background:rgba(229,72,77,.15);color:var(--red);}
+.badge.ok{background:rgba(76,215,135,.12);color:var(--green);}
+.badge.completada{background:rgba(154,154,158,.15);color:var(--text-muted);}
+.card.completada{opacity:.6;}
+
+/* --------- item / stepper --------- */
+.item-row{
+  border-top:1px solid var(--border);padding:14px 0;
+}
+.item-row:first-of-type{border-top:none;}
+.item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+.item-name{font-size:14.5px;font-weight:500;}
+.item-qty{font-family:var(--font-mono);font-size:12.5px;color:var(--text-muted);}
+
+.stepper{display:flex;align-items:center;margin:10px 0 4px;}
+.step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative;}
+.step .dot{
+  width:11px;height:11px;border-radius:50%;background:var(--gray);border:2px solid var(--bg);
+  z-index:2;
+}
+.step .lbl{font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:6px;text-align:center;letter-spacing:.01em;line-height:1.3;}
+.step .line{
+  position:absolute;top:5px;left:50%;width:100%;height:2px;background:var(--gray);z-index:1;
+}
+.step:last-child .line{display:none;}
+.step.done .dot{background:var(--gold-dim);}
+.step.done .line{background:var(--gold-dim);}
+.step.current .dot{background:var(--gold);width:13px;height:13px;top:-1px;}
+.step.current .lbl{color:var(--gold);font-weight:600;}
+
+.item-controls{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:flex-end;}
+.item-controls .field{margin-bottom:0;flex:1;min-width:160px;}
+.saved-tick{font-size:12px;color:var(--green);font-family:var(--font-mono);display:none;align-self:center;}
+
+.nota-view{font-size:13px;color:var(--text-muted);margin-top:8px;font-style:italic;}
+
+/* --------- proveedor list --------- */
+.prov-row{
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--border);padding:14px 0;flex-wrap:wrap;gap:10px;
+}
+.prov-row:first-of-type{border-top:none;}
+.prov-name{font-weight:500;font-size:14.5px;}
+.prov-code{font-family:var(--font-mono);font-size:12px;color:var(--text-muted);}
+.link-box{display:flex;gap:8px;align-items:center;}
+.link-box input{width:280px;font-family:var(--font-mono);font-size:12px;color:var(--text-muted);}
+
+/* --------- items dinamicos crear OC --------- */
+.new-item-row{display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;}
+.new-item-row .field{margin-bottom:0;}
+.new-item-row .f-producto{flex:2;}
+.new-item-row .f-cant{flex:1;}
+.new-item-row .f-unidad{flex:1;}
+.remove-item{color:var(--red);font-size:18px;line-height:1;padding:8px 10px;flex:none;}
+
+.empty{color:var(--text-muted);font-size:14px;text-align:center;padding:40px 0;}
+
+.toast{
+  position:fixed;bottom:24px;right:24px;background:var(--surface-2);border:1px solid var(--gold-dim);
+  color:var(--text);padding:12px 18px;border-radius:8px;font-size:13.5px;
+  opacity:0;transform:translateY(8px);transition:all .25s ease;z-index:50;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+
+@media (max-width:640px){
+  .link-box input{width:160px;}
+  .row{flex-direction:column;}
+  .oc-meta{width:100%;}
+}
+</style>
+
+<script>
+let supabaseClient;
+let currentAdmin = false;
+let proveedoresCache = [];
+
+function initSupabase(){
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  if(window.pdfjsLib){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+}
+
+const ESTADOS = ["Aprobado","Preparando","En tránsito","Recibido parcial","Recibido total"];
+
+function daysSince(dateStr){
+  if(!dateStr) return 0;
+  const diff = Date.now() - new Date(dateStr).getTime();
+  return Math.floor(diff / (1000*60*60*24));
+}
+
+function showToast(msg){
+  let t = document.getElementById("toast");
+  if(!t){
+    t = document.createElement("div");
+    t.id = "toast";
+    t.className = "toast";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+function slugify(nombre){
+  const base = nombre.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,8) || "PROV";
+  const rand = Math.floor(1000 + Math.random()*9000);
+  return base + rand;
+}
+
+/* ==================== ROUTER ==================== */
+function boot(){
+  try{
+    if(!window.supabase){
+      throw new Error("No se pudo cargar la librería de Supabase. Verifica tu conexión a internet e intenta de nuevo.");
+    }
+    initSupabase();
+    const params = new URLSearchParams(window.location.search);
+    const prov = params.get("prov");
+    if(prov){
+      renderProviderView(prov);
+    } else {
+      renderGate();
+    }
+  }catch(err){
+    document.getElementById("app").innerHTML = `
+      <div style="max-width:480px;margin:80px auto;text-align:center;font-family:'Be Vietnam Pro',sans-serif;color:#EDEDED;">
+        <h1 style="font-size:20px;">Algo salió mal</h1>
+        <p style="color:#9A9A9E;font-size:14px;">${escapeHtml(err.message)}</p>
+      </div>
+    `;
+  }
+}
+
+/* ==================== GATE (COMPRAS) ==================== */
+function renderGate(){
+  document.getElementById("app").innerHTML = `
+    <div class="topbar">
+      <div class="brand"><div class="mark"></div><div class="brand-text"><b>SOMOS</b> · Portal OC</div></div>
+    </div>
+    <div class="gate">
+      <h1>Acceso compras</h1>
+      <p class="subtitle">Si eres proveedor, usa el link personalizado que te compartió el equipo de compras.</p>
+      <div class="gate-box">
+        <p>Ingresa el código de acceso del equipo de compras para crear y dar seguimiento a las órdenes.</p>
+        <div class="field"><input id="access-input" type="password" placeholder="Código de acceso" /></div>
+        <button class="primary" id="access-btn" style="width:100%">Entrar</button>
+        <div class="gate-error" id="access-error">Código incorrecto. Intenta de nuevo.</div>
+      </div>
+    </div>
+  `;
+  document.getElementById("access-btn").onclick = ()=>{
+    const val = document.getElementById("access-input").value.trim();
+    if(val === ACCESS_CODE_COMPRAS){
+      currentAdmin = true;
+      renderAdminShell();
+    } else {
+      document.getElementById("access-error").style.display = "block";
+    }
+  };
+  document.getElementById("access-input").addEventListener("keydown", e=>{
+    if(e.key === "Enter") document.getElementById("access-btn").click();
+  });
+}
+
+/* ==================== VISTA PROVEEDOR ==================== */
+async function renderProviderView(code){
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand"><div class="mark"></div><div class="brand-text"><b>SOMOS</b> · Portal OC</div></div>
+      <div class="role-tag">Vista proveedor</div>
+    </div>
+    <div id="prov-content"><p class="empty">Cargando tus órdenes...</p></div>
+  `;
+
+  const { data: proveedor } = await supabaseClient.from("oc_proveedores").select("*").eq("code", code).maybeSingle();
+  const content = document.getElementById("prov-content");
+
+  if(!proveedor){
+    content.innerHTML = `<p class="empty">No encontramos órdenes para este link. Verifica con tu contacto de compras.</p>`;
+    return;
+  }
+
+  const { data: ordenes } = await supabaseClient
+    .from("oc_ordenes")
+    .select("*, oc_items(*)")
+    .eq("proveedor_code", code)
+    .order("fecha_creacion", { ascending:false });
+
+  let html = `<h1>Hola, ${proveedor.nombre}</h1><p class="subtitle">Aquí puedes ver el estado de tus órdenes y actualizar cada producto: marca en qué va y deja una nota si es necesario.</p>`;
+
+  if(!ordenes || ordenes.length === 0){
+    html += `<p class="empty">Todavía no tienes órdenes registradas.</p>`;
+  } else {
+    ordenes.forEach(oc=>{
+      html += renderOrdenCard(oc, true);
+    });
+  }
+  content.innerHTML = html;
+  attachItemHandlers(true);
+}
+
+/* ==================== RENDER DE UNA ORDEN (compartido) ==================== */
+function renderOrdenCard(oc, editable, proveedorNombre){
+  const items = (oc.oc_items || []).sort((a,b)=> a.producto.localeCompare(b.producto));
+  const completada = items.length > 0 && items.every(it => it.estado === "Recibido total");
+  const anyAtrasado = !completada && items.some(it => it.estado !== "Recibido total" && daysSince(it.actualizado_en) > DIAS_ALERTA);
+
+  let itemsHtml = items.map(it => renderItemRow(oc.id, it, editable)).join("");
+  if(items.length === 0) itemsHtml = `<p class="empty" style="padding:16px 0;">Sin productos registrados en esta orden.</p>`;
+
+  let badgeClass = "ok";
+  let badgeText = "Al día";
+  if(completada){ badgeClass = "completada"; badgeText = "Completada"; }
+  else if(anyAtrasado){ badgeClass = "atrasado"; badgeText = "Atrasado"; }
+
+  return `
+    <div class="card${completada ? " completada" : ""}">
+      <div class="card-head">
+        <div>
+          <div class="oc-number">OC ${escapeHtml(oc.numero_oc)}</div>
+          <div class="oc-meta">${proveedorNombre ? escapeHtml(proveedorNombre)+" · " : ""}Creada ${oc.fecha_creacion || "-"}${oc.fecha_estimada ? " · Estimada "+oc.fecha_estimada : ""}</div>
+        </div>
+        <div class="badge ${badgeClass}">${badgeText}</div>
+      </div>
+      ${oc.nota_general ? `<div class="nota-view">Nota general: ${escapeHtml(oc.nota_general)}</div>` : ""}
+      ${itemsHtml}
+    </div>
+  `;
+}
+
+function renderItemRow(ordenId, it, editable){
+  const idx = ESTADOS.indexOf(it.estado);
+  const currentIdx = idx === -1 ? 0 : idx;
+  const atrasado = it.estado !== "Recibido total" && daysSince(it.actualizado_en) > DIAS_ALERTA;
+
+  const stepperHtml = ESTADOS.map((label, i)=>{
+    let cls = "step";
+    if(i < currentIdx) cls += " done";
+    if(i === currentIdx) cls += " current";
+    return `<div class="${cls}"><div class="line"></div><div class="dot"></div><div class="lbl">${label}</div></div>`;
+  }).join("");
+
+  const controls = editable ? `
+    <div class="item-controls" data-item-id="${it.id}">
+      <div class="field">
+        <label>Estado</label>
+        <select class="estado-select">
+          ${ESTADOS.map(e=>`<option value="${e}" ${e===it.estado?"selected":""}>${e}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field" style="flex:2;">
+        <label>Nota (opcional)</label>
+        <input class="nota-input" type="text" placeholder="Ej: sale de fábrica el 15" value="${escapeAttr(it.nota_proveedor || "")}" />
+      </div>
+      <button class="small primary save-item-btn">Guardar</button>
+      <span class="saved-tick">Guardado ✓</span>
+    </div>
+  ` : (it.nota_proveedor ? `<div class="nota-view">Nota del proveedor: ${escapeHtml(it.nota_proveedor)}</div>` : "");
+
+  return `
+    <div class="item-row">
+      <div class="item-top">
+        <div>
+          <div class="item-name">${escapeHtml(it.producto)} ${atrasado ? '<span class="badge atrasado" style="margin-left:8px;">Atrasado</span>' : ""}</div>
+          <div class="item-qty">${it.cantidad ?? ""} ${escapeHtml(it.unidad || "")}</div>
+        </div>
+      </div>
+      <div class="stepper">${stepperHtml}</div>
+      ${controls}
+    </div>
+  `;
+}
+
+function attachItemHandlers(isProviderView){
+  document.querySelectorAll(".save-item-btn").forEach(btn=>{
+    btn.onclick = async ()=>{
+      const wrap = btn.closest(".item-controls");
+      const itemId = wrap.getAttribute("data-item-id");
+      const estado = wrap.querySelector(".estado-select").value;
+      const nota = wrap.querySelector(".nota-input").value.trim();
+      btn.disabled = true;
+      const { error } = await supabaseClient.from("oc_items").update({
+        estado, nota_proveedor: nota, actualizado_en: new Date().toISOString()
+      }).eq("id", itemId);
+      btn.disabled = false;
+      if(error){
+        showToast("No se pudo guardar. Intenta de nuevo.");
+      } else {
+        const tick = wrap.querySelector(".saved-tick");
+        tick.style.display = "inline";
+        setTimeout(()=>tick.style.display="none", 1800);
+        showToast("Estado actualizado");
+      }
+    };
+  });
+}
+
+function escapeHtml(str){
+  return String(str ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+/* ==================== VISTA COMPRAS (ADMIN) ==================== */
+async function renderAdminShell(){
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand"><div class="mark"></div><div class="brand-text"><b>SOMOS</b> · Portal OC</div></div>
+      <div class="role-tag">Vista compras</div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="seguimiento">Seguimiento</div>
+      <div class="tab" data-tab="crear">Subir OC</div>
+      <div class="tab" data-tab="proveedores">Proveedores</div>
+    </div>
+    <div id="tab-content"></div>
+  `;
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.onclick = ()=>{
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      const which = t.getAttribute("data-tab");
+      if(which === "seguimiento") renderTabSeguimiento();
+      if(which === "crear") renderTabCrear();
+      if(which === "proveedores") renderTabProveedores();
+    };
+  });
+  await loadProveedoresCache();
+  renderTabSeguimiento();
+}
+
+async function loadProveedoresCache(){
+  const { data } = await supabaseClient.from("oc_proveedores").select("*").order("nombre");
+  proveedoresCache = data || [];
+}
+
+/* ---- TAB: SEGUIMIENTO ---- */
+async function renderTabSeguimiento(){
+  const content = document.getElementById("tab-content");
+  content.innerHTML = `<p class="empty">Cargando órdenes...</p>`;
+
+  const { data: ordenes } = await supabaseClient
+    .from("oc_ordenes")
+    .select("*, oc_items(*)")
+    .order("fecha_creacion", { ascending:false });
+
+  if(!ordenes || ordenes.length === 0){
+    content.innerHTML = `<p class="empty">Aún no hay órdenes registradas. Súbela en la pestaña "Subir OC".</p>`;
+    return;
+  }
+
+  const provMap = {};
+  proveedoresCache.forEach(p => provMap[p.code] = p.nombre);
+
+  const isCompletada = (oc) => {
+    const items = oc.oc_items || [];
+    return items.length > 0 && items.every(it => it.estado === "Recibido total");
+  };
+  const activas = ordenes.filter(oc => !isCompletada(oc));
+  const completadas = ordenes.filter(oc => isCompletada(oc));
+
+  let html = "";
+  [...activas, ...completadas].forEach(oc=>{
+    html += renderOrdenCard(oc, false, provMap[oc.proveedor_code] || oc.proveedor_code);
+  });
+  content.innerHTML = html;
+}
+
+/* ---- LECTURA DE PDF DE ARTEMIS ---- */
+async function extractOCFromPDF(file){
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = "";
+  for(let i=1; i<=pdf.numPages; i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    fullText += content.items.map(it => it.str).join(" ") + " ";
+  }
+  return parseOCText(fullText);
+}
+
+function parseOCText(text){
+  const result = { numero_oc:"", fecha:"", proveedor_nombre:"", items:[] };
+
+  let m;
+  m = text.match(/C[oó]digo de orden:\s*(\S+)/i);
+  if(m) result.numero_oc = m[1];
+
+  m = text.match(/Fecha de creaci[oó]n:\s*(\S+)/i);
+  if(m){
+    const parts = m[1].split(/[\/\-]/);
+    if(parts.length === 3){
+      const [d, mo, y] = parts;
+      result.fecha = `${y.length===4?y:"20"+y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`;
+    }
+  }
+
+  m = text.match(/Raz[oó]n Social:\s*(.+?)\s*(?=Documento:)/i);
+  if(m) result.proveedor_nombre = m[1].trim();
+
+  const prodStart = text.search(/PRODUCTOS/i);
+  const totalStart = text.search(/Subtotal\s+COP\s*\$/i);
+  if(prodStart !== -1){
+    const section = text.slice(prodStart, totalStart !== -1 ? totalStart : text.length);
+    const rowRegex = /([A-ZÁÉÍÓÚÑÜ0-9][A-ZÁÉÍÓÚÑÜ0-9\s]{2,60}?)\s+(\d+)\s*COP\s*\$\s*[\d.,]+\s*COP\s*\$\s*[\d.,]+\s*COP\s*\$\s*[\d.,]+\s*COP\s*\$\s*[\d.,]+/g;
+    let row;
+    while((row = rowRegex.exec(section)) !== null){
+      const nombre = row[1].replace(/\s+/g," ").trim();
+      if(nombre === "Producto Cantidad Precio Unitario Subtotal Impuestos Total".slice(0, nombre.length)) continue;
+      result.items.push({ producto: nombre, cantidad: parseInt(row[2], 10), unidad: "" });
+    }
+  }
+
+  return result;
+}
+
+let newItemCount = 0;
+
+function renderTabCrear(){
+  const content = document.getElementById("tab-content");
+  const provOptions = proveedoresCache.map(p=>`<option value="${p.code}">${escapeHtml(p.nombre)}</option>`).join("");
+
+  content.innerHTML = `
+    <div class="card">
+      <h2>Subir OC desde PDF de Artemis</h2>
+      <p class="subtitle" style="margin-bottom:14px;">Sube el PDF que exporta Artemis y se autocompletan el proveedor, el número de OC y los productos. Revisa los datos antes de guardar.</p>
+      <input type="file" id="pdf-input" accept="application/pdf" />
+      <div id="pdf-status" style="margin-top:10px;font-size:13px;color:var(--text-muted);"></div>
+    </div>
+
+    <div class="card">
+      <h2>Registrar orden de compra</h2>
+      <p class="subtitle" style="margin-bottom:18px;">Revisa o completa los datos y confirma para crear la orden. El proveedor podrá actualizar los productos desde su link personalizado.</p>
+
+      <div class="row">
+        <div class="field">
+          <label>Proveedor</label>
+          <select id="oc-proveedor">
+            <option value="">Selecciona un proveedor</option>
+            ${provOptions}
+            <option value="__nuevo__">+ Nuevo proveedor</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Número de OC</label>
+          <input id="oc-numero" type="text" placeholder="Ej: OC-2026-0145" />
+        </div>
+      </div>
+
+      <div id="nuevo-proveedor-box" style="display:none;" class="field">
+        <label>Nombre del nuevo proveedor</label>
+        <input id="oc-nuevo-nombre" type="text" placeholder="Ej: Shenzhen Topleo" />
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Fecha estimada de entrega</label>
+          <input id="oc-fecha" type="date" />
+        </div>
+        <div class="field">
+          <label>Nota general (opcional)</label>
+          <input id="oc-nota" type="text" placeholder="Ej: Envío parcial, resto en julio" />
+        </div>
+      </div>
+
+      <label style="margin-top:8px;">Productos</label>
+      <div id="items-container"></div>
+      <button class="ghost small" id="add-item-btn" style="margin-bottom:20px;">+ Agregar producto</button>
+
+      <div>
+        <button class="primary" id="submit-oc-btn">Registrar orden</button>
+      </div>
+      <div id="oc-result" style="margin-top:16px;"></div>
+    </div>
+  `;
+
+  document.getElementById("oc-proveedor").onchange = (e)=>{
+    document.getElementById("nuevo-proveedor-box").style.display = e.target.value === "__nuevo__" ? "block" : "none";
+  };
+
+  document.getElementById("add-item-btn").onclick = addItemRow;
+  addItemRow();
+  addItemRow();
+
+  document.getElementById("pdf-input").onchange = async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const status = document.getElementById("pdf-status");
+    status.textContent = "Leyendo PDF y registrando la orden...";
+    status.style.color = "var(--text-muted)";
+    try{
+      const parsed = await extractOCFromPDF(file);
+      fillFormFromPDF(parsed);
+      await submitOC();
+      status.textContent = `Orden ${parsed.numero_oc || ""} registrada automáticamente.`;
+      status.style.color = "var(--green)";
+      e.target.value = "";
+    }catch(err){
+      status.textContent = "No se pudo leer o registrar el PDF automáticamente. Revisa los datos abajo y da clic en Registrar orden.";
+      status.style.color = "var(--red)";
+    }
+  };
+
+  document.getElementById("submit-oc-btn").onclick = submitOC;
+}
+
+function fillFormFromPDF(parsed){
+  if(parsed.numero_oc) document.getElementById("oc-numero").value = parsed.numero_oc;
+  if(parsed.fecha) document.getElementById("oc-fecha").value = parsed.fecha;
+
+  const provSelect = document.getElementById("oc-proveedor");
+  if(parsed.proveedor_nombre){
+    const match = proveedoresCache.find(p => p.nombre.trim().toLowerCase() === parsed.proveedor_nombre.trim().toLowerCase());
+    if(match){
+      provSelect.value = match.code;
+      document.getElementById("nuevo-proveedor-box").style.display = "none";
+    } else {
+      provSelect.value = "__nuevo__";
+      document.getElementById("nuevo-proveedor-box").style.display = "block";
+      document.getElementById("oc-nuevo-nombre").value = parsed.proveedor_nombre;
+    }
+  }
+
+  if(parsed.items && parsed.items.length > 0){
+    document.getElementById("items-container").innerHTML = "";
+    parsed.items.forEach(it=>{
+      addItemRow();
+      const rows = document.querySelectorAll(".new-item-row");
+      const lastRow = rows[rows.length - 1];
+      lastRow.querySelector(".ni-producto").value = it.producto;
+      lastRow.querySelector(".ni-cantidad").value = it.cantidad ?? "";
+      lastRow.querySelector(".ni-unidad").value = it.unidad ?? "";
+    });
+  }
+}
+
+function addItemRow(){
+  newItemCount++;
+  const container = document.getElementById("items-container");
+  const rowId = "item-" + newItemCount;
+  const div = document.createElement("div");
+  div.className = "new-item-row";
+  div.id = rowId;
+  div.innerHTML = `
+    <div class="field f-producto"><input class="ni-producto" type="text" placeholder="Nombre del producto" /></div>
+    <div class="field f-cant"><input class="ni-cantidad" type="number" placeholder="Cantidad" /></div>
+    <div class="field f-unidad"><input class="ni-unidad" type="text" placeholder="Unidad (ud, caja...)" /></div>
+    <button class="remove-item ghost" type="button">×</button>
+  `;
+  div.querySelector(".remove-item").onclick = ()=> div.remove();
+  container.appendChild(div);
+}
+
+async function submitOC(){
+  const provSelect = document.getElementById("oc-proveedor");
+  const numero = document.getElementById("oc-numero").value.trim();
+  const fecha = document.getElementById("oc-fecha").value;
+  const nota = document.getElementById("oc-nota").value.trim();
+  const resultBox = document.getElementById("oc-result");
+
+  let provCode = provSelect.value;
+
+  if(!provCode){
+    resultBox.innerHTML = `<p style="color:var(--red);font-size:13px;">Selecciona o crea un proveedor.</p>`;
+    return;
+  }
+  if(!numero){
+    resultBox.innerHTML = `<p style="color:var(--red);font-size:13px;">Ingresa el número de OC.</p>`;
+    return;
+  }
+
+  const btn = document.getElementById("submit-oc-btn");
+  btn.disabled = true;
+  btn.textContent = "Creando...";
+
+  if(provCode === "__nuevo__"){
+    const nombre = document.getElementById("oc-nuevo-nombre").value.trim();
+    if(!nombre){
+      resultBox.innerHTML = `<p style="color:var(--red);font-size:13px;">Ingresa el nombre del nuevo proveedor.</p>`;
+      btn.disabled = false; btn.textContent = "Registrar orden";
+      return;
+    }
+    const code = slugify(nombre);
+    const { error } = await supabaseClient.from("oc_proveedores").insert({ code, nombre });
+    if(error){
+      resultBox.innerHTML = `<p style="color:var(--red);font-size:13px;">Error creando proveedor: ${escapeHtml(error.message)}</p>`;
+      btn.disabled = false; btn.textContent = "Registrar orden";
+      return;
+    }
+    provCode = code;
+    await loadProveedoresCache();
+  }
+
+  const itemsRows = Array.from(document.querySelectorAll(".new-item-row")).map(row=>({
+    producto: row.querySelector(".ni-producto").value.trim(),
+    cantidad: parseFloat(row.querySelector(".ni-cantidad").value) || null,
+    unidad: row.querySelector(".ni-unidad").value.trim()
+  })).filter(it => it.producto);
+
+  const { data: ordenData, error: ordenError } = await supabaseClient.from("oc_ordenes").insert({
+    numero_oc: numero,
+    proveedor_code: provCode,
+    fecha_estimada: fecha || null,
+    nota_general: nota || null
+  }).select().single();
+
+  if(ordenError){
+    resultBox.innerHTML = `<p style="color:var(--red);font-size:13px;">Error creando la orden: ${escapeHtml(ordenError.message)}</p>`;
+    btn.disabled = false; btn.textContent = "Registrar orden";
+    return;
+  }
+
+  if(itemsRows.length > 0){
+    const itemsToInsert = itemsRows.map(it => ({ ...it, orden_id: ordenData.id, estado: "Aprobado" }));
+    await supabaseClient.from("oc_items").insert(itemsToInsert);
+  }
+
+  const link = buildProviderLink(provCode);
+  resultBox.innerHTML = `
+    <p style="color:var(--green);font-size:13.5px;margin-bottom:10px;">Orden ${escapeHtml(numero)} creada correctamente.</p>
+    <div class="link-box">
+      <input readonly value="${link}" onclick="this.select()" />
+      <button class="small" onclick="copyToClipboard('${link}')">Copiar link</button>
+    </div>
+  `;
+  btn.disabled = false;
+  btn.textContent = "Registrar orden";
+
+  document.getElementById("oc-numero").value = "";
+  document.getElementById("oc-nota").value = "";
+  document.getElementById("oc-fecha").value = "";
+  document.getElementById("oc-proveedor").value = "";
+  document.getElementById("oc-nuevo-nombre").value = "";
+  document.getElementById("nuevo-proveedor-box").style.display = "none";
+  document.getElementById("items-container").innerHTML = "";
+  addItemRow();
+  addItemRow();
+}
+
+/* ---- TAB: PROVEEDORES ---- */
+function renderTabProveedores(){
+  const content = document.getElementById("tab-content");
+  let html = `
+    <div class="card">
+      <h2>Proveedores</h2>
+      <p class="subtitle" style="margin-bottom:6px;">Comparte el link personalizado de cada proveedor para que actualice sus órdenes.</p>
+  `;
+  if(proveedoresCache.length === 0){
+    html += `<p class="empty">Todavía no hay proveedores. Se crean automáticamente al registrar una OC nueva.</p>`;
+  } else {
+    proveedoresCache.forEach(p=>{
+      const link = buildProviderLink(p.code);
+      html += `
+        <div class="prov-row">
+          <div>
+            <div class="prov-name">${escapeHtml(p.nombre)}</div>
+            <div class="prov-code">${p.code}</div>
+          </div>
+          <div class="link-box">
+            <input readonly value="${link}" onclick="this.select()" />
+            <button class="small" onclick="copyToClipboard('${link}')">Copiar link</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+  html += `</div>`;
+  content.innerHTML = html;
+}
+
+function buildProviderLink(code){
+  const base = window.location.origin + window.location.pathname;
+  return `${base}?prov=${code}`;
+}
+
+function copyToClipboard(text){
+  navigator.clipboard.writeText(text).then(()=> showToast("Link copiado"));
+}
+
+boot();
+</script>
+</body>
+</html>
